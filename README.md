@@ -122,6 +122,30 @@ labels referencing the current build version and build release date.
 cloudwatch exporter version and release date as label values. The numeric metric value is statically
 set to 1. If the metrics label values are "unknown" the build information scrap failed.
 
+### Deciding what metrics to request and export
+
+Each cloudwatch metric is identified with unique dimension object.
+The exporter needs to know what dimensions of each metric to request.
+`aws_dimensions` - must specify the keys set for the dimensions (use `aws cloudwatch list-metrics` to find possible dimensions key-set). The only case this should be empty is if the metric has empty dimensions.
+
+The selection of dimensions values can be **pre-configured** or **auto-discovered**.
+
+##### Pre-configured dimensions selection
+PreConfigured mode will happen if and only if:
+- `aws_tag_selection` is **not** used.
+- `aws_dimensions_select` - lists values for all the dimensions in `aws_dimensions`.
+
+For instance:
+```yml
+   aws_dimensions: [AvailabilityZone, LoadBalancerName]
+   aws_dimension_select:
+     LoadBalancerName: [myLB]
+     AvailabilityZone: [us-west-2a, us-west-2b]
+```
+
+##### Auto-configured dimensions selection
+The exporter will use cloudwatch `ListMetrics` API to find which m
+
 ### CloudWatch doesn't always report data
 
 Cloudwatch reports data either always or only in some cases, example only if there is a non-zero value. The CloudWatch Exporter mirrors this behavior, so you should refer to the Cloudwatch documentation to find out if your metric is always reported or not.
