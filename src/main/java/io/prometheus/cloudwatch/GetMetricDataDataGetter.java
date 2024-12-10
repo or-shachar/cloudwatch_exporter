@@ -137,6 +137,7 @@ class GetMetricDataDataGetter implements DataGetter {
   }
 
   private Map<String, MetricRuleData> fetchAllDataPoints(List<List<Dimension>> dimensionsList) {
+    long startTime = System.nanoTime(); // Capture start time
     List<GetMetricDataRequest> requests = buildMetricDataRequests(rule, dimensionsList);
     List<CompletableFuture<List<MetricDataResult>>> futures =
         requests.stream()
@@ -157,6 +158,9 @@ class GetMetricDataDataGetter implements DataGetter {
     metricsRequestedCounter
         .labels(rule.awsMetricName, rule.awsNamespace)
         .inc(metricRequestedForBilling);
+    long endTime = System.nanoTime(); // Capture end time
+    long duration = endTime - startTime;
+    LOGGER.info("Fetched " + res.size() + " results from CloudWatch in " +  duration / 1_000_000_000.0 + " seconds");
     return toMap(res);
   }
 
