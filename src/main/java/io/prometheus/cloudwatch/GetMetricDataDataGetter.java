@@ -8,6 +8,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
@@ -135,18 +139,35 @@ class GetMetricDataDataGetter implements DataGetter {
   }
 
   private Map<String, MetricRuleData> fetchAllDataPoints(List<List<Dimension>> dimensionsList) {
-    List<MetricDataResult> results = new ArrayList<>();
+    int parallelism = 4; // Set the desired level of parallelism
+    ExecutorService executor = Executors.newFixedThreadPool(parallelism);
+    List<CompletableFuture<List<MetricDataResult>>> futures = new ArrayList<>();
+
     for (GetMetricDataRequest request : buildMetricDataRequests(rule, dimensionsList)) {
-      GetMetricDataResponse response = client.getMetricData(request);
-      apiRequestsCounter.labels("getMetricData", rule.awsNamespace).inc();
-      results.addAll(response.metricDataResults());
-      while (response.nextToken() != null) {
-        request = request.toBuilder().nextToken(response.nextToken()).build();
-        response = client.getMetricData(request);
-        apiRequestsCounter.labels("getMetricData", rule.awsNamespace).inc();
-        results.addAll(response.metricDataResults());
-      }
+      CompletableFuture<List<MetricDataResult>> future =
+          CompletableFuture.supplyAsync(
+              () -> {
+                GetMetricDataResponse response = client.getMetricData(request);
+                apiRequestsCounter.labels("getMetricData", rule.awsNamespace).inc();
+                return response.metricDataResults();
+              },
+              executor);
+      futures.add(future);
     }
+
+    List<MetricDataResult> results = new ArrayList<>();
+    try {
+      CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+      for (CompletableFuture<List<MetricDataResult>> future : futures) {
+        results.addAll(future.get());
+      }
+    } catch (InterruptedException | ExecutionException e) {
+      // Handle exceptions
+      e.printStackTrace();
+    } finally {
+      executor.shutdown();
+    }
+
     metricsRequestedCounter
         .labels(rule.awsMetricName, rule.awsNamespace)
         .inc(metricRequestedForBilling);
@@ -156,8 +177,10 @@ class GetMetricDataDataGetter implements DataGetter {
   private Map<String, MetricRuleData> toMap(List<MetricDataResult> metricDataResults) {
     Map<String, MetricRuleData> res = new HashMap<>();
     for (MetricDataResult dataResult : metricDataResults) {
-      if (dataResult.statusCode() == StatusCode.INTERNAL_ERROR) {
-        LOGGER.warning("Got INTERNAL_ERROR from CloudWatch. Ignoring the result.");
+      if (dataResult.statusCode() != StatusCode.COMPLETE) {
+        LOGGER.warning(
+            String.format(
+                "Got %s from CloudWatch. Ignoring the result.", dataResult.statusCodeAsString()));
       }
       if (dataResult.timestamps().isEmpty() || dataResult.values().isEmpty()) {
         continue;
