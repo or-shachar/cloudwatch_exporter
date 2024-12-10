@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
@@ -19,9 +20,10 @@ import software.amazon.awssdk.services.cloudwatch.model.MetricDataResult;
 import software.amazon.awssdk.services.cloudwatch.model.MetricStat;
 import software.amazon.awssdk.services.cloudwatch.model.ScanBy;
 import software.amazon.awssdk.services.cloudwatch.model.Statistic;
+import software.amazon.awssdk.services.cloudwatch.model.StatusCode;
 
 class GetMetricDataDataGetter implements DataGetter {
-
+  private static final Logger LOGGER = Logger.getLogger(GetMetricDataDataGetter.class.getName());
   private static final int MAX_QUERIES_PER_REQUEST = 500;
   // https://aws.amazon.com/cloudwatch/pricing/
   private final long start;
@@ -138,6 +140,12 @@ class GetMetricDataDataGetter implements DataGetter {
       GetMetricDataResponse response = client.getMetricData(request);
       apiRequestsCounter.labels("getMetricData", rule.awsNamespace).inc();
       results.addAll(response.metricDataResults());
+      while (response.nextToken() != null) {
+        request = request.toBuilder().nextToken(response.nextToken()).build();
+        response = client.getMetricData(request);
+        apiRequestsCounter.labels("getMetricData", rule.awsNamespace).inc();
+        results.addAll(response.metricDataResults());
+      }
     }
     metricsRequestedCounter
         .labels(rule.awsMetricName, rule.awsNamespace)
@@ -148,6 +156,9 @@ class GetMetricDataDataGetter implements DataGetter {
   private Map<String, MetricRuleData> toMap(List<MetricDataResult> metricDataResults) {
     Map<String, MetricRuleData> res = new HashMap<>();
     for (MetricDataResult dataResult : metricDataResults) {
+      if (dataResult.statusCode()==StatusCode.INTERNAL_ERROR){
+        LOGGER.warning("Got INTERNAL_ERROR from CloudWatch. Ignoring the result.");
+      }
       if (dataResult.timestamps().isEmpty() || dataResult.values().isEmpty()) {
         continue;
       }
