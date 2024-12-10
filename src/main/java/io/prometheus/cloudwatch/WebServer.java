@@ -48,6 +48,9 @@ public class WebServer {
     context.addServlet(new ServletHolder(new HealthServlet()), "/-/healthy");
     context.addServlet(new ServletHolder(new HealthServlet()), "/-/ready");
     context.addServlet(new ServletHolder(new HomePageServlet()), "/");
+
+    server.setStopTimeout(30000);
+
     server.start();
     server.join();
   }

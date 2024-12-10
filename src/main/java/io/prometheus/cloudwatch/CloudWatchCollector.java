@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -28,6 +30,7 @@ import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.core.client.config.SdkAdvancedAsyncClientOption;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClientBuilder;
@@ -201,6 +204,21 @@ public class CloudWatchCollector extends Collector implements Describable {
 
       if (config.containsKey("role_arn")) {
         clientBuilder.credentialsProvider(getRoleCredentialProvider(config));
+      }
+
+      if (config.containsKey("parallelism")) {
+        ExecutorService threadPool =
+            Executors.newFixedThreadPool(((Number) config.get("parallelism")).intValue());
+        clientBuilder.asyncConfiguration(
+            b ->
+                b.advancedOption(
+                    SdkAdvancedAsyncClientOption.FUTURE_COMPLETION_EXECUTOR, threadPool));
+        Runtime.getRuntime()
+            .addShutdownHook(
+                new Thread(
+                    () -> {
+                      threadPool.shutdown();
+                    }));
       }
 
       if (region != null) {
