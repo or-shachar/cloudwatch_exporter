@@ -160,7 +160,7 @@ class GetMetricDataDataGetter implements DataGetter {
         .inc(metricRequestedForBilling);
     long endTime = System.nanoTime(); // Capture end time
     long duration = endTime - startTime;
-    LOGGER.info("Fetched " + res.size() + " results from CloudWatch in " +  duration / 1_000_000_000.0 + " seconds");
+    LOGGER.info(String.format("%s/%s",rule.awsNamespace,rule.awsMetricName)+" :Fetched " + res.size() + " results from CloudWatch in " +  duration / 1_000_000_000.0 + " seconds");
     return toMap(res);
   }
 
