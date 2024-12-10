@@ -4,7 +4,7 @@ import io.prometheus.client.Counter;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.cloudwatch.model.Datapoint;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricStatisticsRequest;
@@ -14,12 +14,12 @@ import software.amazon.awssdk.services.cloudwatch.model.Statistic;
 class GetMetricStatisticsDataGetter implements DataGetter {
   private long start;
   private MetricRule rule;
-  private CloudWatchClient client;
+  private CloudWatchAsyncClient client;
   private Counter apiRequestsCounter;
   private Counter metricsRequestedCounter;
 
   GetMetricStatisticsDataGetter(
-      CloudWatchClient client,
+      CloudWatchAsyncClient client,
       long start,
       MetricRule rule,
       Counter apiRequestsCounter,
@@ -49,7 +49,7 @@ class GetMetricStatisticsDataGetter implements DataGetter {
   public MetricRuleData metricRuleDataFor(List<Dimension> dimensions) {
     GetMetricStatisticsRequest.Builder builder = metricStatisticsRequestBuilder();
     builder.dimensions(dimensions);
-    GetMetricStatisticsResponse response = client.getMetricStatistics(builder.build());
+    GetMetricStatisticsResponse response = client.getMetricStatistics(builder.build()).join();
     apiRequestsCounter.labels("getMetricStatistics", rule.awsNamespace).inc();
     metricsRequestedCounter.labels(rule.awsMetricName, rule.awsNamespace).inc();
     Datapoint latestDp = getNewestDatapoint(response.datapoints());

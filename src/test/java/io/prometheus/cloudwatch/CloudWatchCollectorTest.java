@@ -21,10 +21,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.cloudwatch.model.*;
 import software.amazon.awssdk.services.resourcegroupstaggingapi.ResourceGroupsTaggingApiClient;
 import software.amazon.awssdk.services.resourcegroupstaggingapi.model.GetResourcesRequest;
@@ -33,13 +34,13 @@ import software.amazon.awssdk.services.resourcegroupstaggingapi.model.ResourceTa
 import software.amazon.awssdk.services.resourcegroupstaggingapi.model.Tag;
 
 public class CloudWatchCollectorTest {
-  CloudWatchClient cloudWatchClient;
+  CloudWatchAsyncClient cloudWatchClient;
   ResourceGroupsTaggingApiClient taggingClient;
   CollectorRegistry registry;
 
   @Before
   public void setUp() {
-    cloudWatchClient = Mockito.mock(CloudWatchClient.class);
+    cloudWatchClient = Mockito.mock(CloudWatchAsyncClient.class);
     taggingClient = Mockito.mock(ResourceGroupsTaggingApiClient.class);
     registry = new CollectorRegistry();
   }
@@ -53,7 +54,8 @@ public class CloudWatchCollectorTest {
         .register(registry);
 
     Mockito.when(cloudWatchClient.getMetricStatistics((GetMetricStatisticsRequest) any()))
-        .thenReturn(GetMetricStatisticsResponse.builder().build());
+        .thenReturn(
+            CompletableFuture.completedFuture(GetMetricStatisticsResponse.builder().build()));
 
     registry.getSampleValue(
         "aws_elb_request_count_average",
@@ -76,10 +78,11 @@ public class CloudWatchCollectorTest {
         .register(registry);
 
     Mockito.when(cloudWatchClient.getMetricStatistics((GetMetricStatisticsRequest) any()))
-        .thenReturn(GetMetricStatisticsResponse.builder().build());
+        .thenReturn(
+            CompletableFuture.completedFuture(GetMetricStatisticsResponse.builder().build()));
 
     Mockito.when(cloudWatchClient.getMetricData((GetMetricDataRequest) any()))
-        .thenReturn(GetMetricDataResponse.builder().build());
+        .thenReturn(CompletableFuture.completedFuture(GetMetricDataResponse.builder().build()));
     registry.getSampleValue(
         "aws_elb_request_count_average",
         new String[] {"job", "instance"},
@@ -111,7 +114,8 @@ public class CloudWatchCollectorTest {
         .register(registry);
 
     Mockito.when(cloudWatchClient.getMetricStatistics((GetMetricStatisticsRequest) any()))
-        .thenReturn(GetMetricStatisticsResponse.builder().build());
+        .thenReturn(
+            CompletableFuture.completedFuture(GetMetricStatisticsResponse.builder().build()));
 
     registry.getSampleValue(
         "aws_elb_request_count_average",
@@ -141,17 +145,18 @@ public class CloudWatchCollectorTest {
                         new GetMetricStatisticsRequestMatcher()
                             .Namespace("AWS/ELB").MetricName("RequestCount"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder()
-                        .timestamp(new Date().toInstant())
-                        .average(1.0)
-                        .maximum(2.0)
-                        .minimum(3.0)
-                        .sampleCount(4.0)
-                        .sum(5.0)
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder()
+                            .timestamp(new Date().toInstant())
+                            .average(1.0)
+                            .maximum(2.0)
+                            .minimum(3.0)
+                            .sampleCount(4.0)
+                            .sum(5.0)
+                            .build())
+                    .build()));
 
     assertEquals(
         1.0,
@@ -232,35 +237,36 @@ public class CloudWatchCollectorTest {
                                             new MetricStatMatcher()
                                                 .Stat("Sum").metric(metricMatcher))))))
         .thenReturn(
-            GetMetricDataResponse.builder()
-                .metricDataResults(
-                    List.of(
-                        MetricDataResult.builder()
-                            .label("Average/")
-                            .values(List.of(Double.valueOf(1.0)))
-                            .timestamps(timestamps)
-                            .build(),
-                        MetricDataResult.builder()
-                            .label("Maximum/")
-                            .values(List.of(Double.valueOf(2.0)))
-                            .timestamps(timestamps)
-                            .build(),
-                        MetricDataResult.builder()
-                            .label("Minimum/")
-                            .values(List.of(Double.valueOf(3.0)))
-                            .timestamps(timestamps)
-                            .build(),
-                        MetricDataResult.builder()
-                            .label("SampleCount/")
-                            .values(List.of(Double.valueOf(4.0)))
-                            .timestamps(timestamps)
-                            .build(),
-                        MetricDataResult.builder()
-                            .label("Sum/")
-                            .values(List.of(Double.valueOf(5.0)))
-                            .timestamps(timestamps)
-                            .build()))
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricDataResponse.builder()
+                    .metricDataResults(
+                        List.of(
+                            MetricDataResult.builder()
+                                .label("Average/")
+                                .values(List.of(Double.valueOf(1.0)))
+                                .timestamps(timestamps)
+                                .build(),
+                            MetricDataResult.builder()
+                                .label("Maximum/")
+                                .values(List.of(Double.valueOf(2.0)))
+                                .timestamps(timestamps)
+                                .build(),
+                            MetricDataResult.builder()
+                                .label("Minimum/")
+                                .values(List.of(Double.valueOf(3.0)))
+                                .timestamps(timestamps)
+                                .build(),
+                            MetricDataResult.builder()
+                                .label("SampleCount/")
+                                .values(List.of(Double.valueOf(4.0)))
+                                .timestamps(timestamps)
+                                .build(),
+                            MetricDataResult.builder()
+                                .label("Sum/")
+                                .values(List.of(Double.valueOf(5.0)))
+                                .timestamps(timestamps)
+                                .build()))
+                    .build()));
 
     assertEquals(
         1.0,
@@ -315,10 +321,11 @@ public class CloudWatchCollectorTest {
                         new GetMetricStatisticsRequestMatcher()
                             .Namespace("AWS/ELB").MetricName("RequestCount"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(timestamp.toInstant()).average(1.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(timestamp.toInstant()).average(1.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -327,10 +334,11 @@ public class CloudWatchCollectorTest {
                         new GetMetricStatisticsRequestMatcher()
                             .Namespace("AWS/ELB").MetricName("HTTPCode_Backend_2XX"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(timestamp.toInstant()).average(1.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(timestamp.toInstant()).average(1.0).build())
+                    .build()));
 
     assertMetricTimestampEquals(registry, "aws_elb_request_count_average", timestamp.getTime());
     assertMetricTimestampEquals(registry, "aws_elb_httpcode_backend_2_xx_average", null);
@@ -369,12 +377,13 @@ public class CloudWatchCollectorTest {
                         new GetMetricStatisticsRequestMatcher()
                             .Namespace("AWS/ELB").MetricName("RequestCount"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date(1).toInstant()).average(1.0).build(),
-                    Datapoint.builder().timestamp(new Date(3).toInstant()).average(3.0).build(),
-                    Datapoint.builder().timestamp(new Date(2).toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date(1).toInstant()).average(1.0).build(),
+                        Datapoint.builder().timestamp(new Date(3).toInstant()).average(3.0).build(),
+                        Datapoint.builder().timestamp(new Date(2).toInstant()).average(2.0).build())
+                    .build()));
 
     assertEquals(
         3.0,
@@ -402,28 +411,32 @@ public class CloudWatchCollectorTest {
                                 .MetricName("RequestCount")
                                 .Dimensions("AvailabilityZone", "LoadBalancerName"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB").build(),
-                            Dimension.builder()
-                                .name("ThisExtraDimensionIsIgnored")
-                                .value("dummy")
-                                .build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("b").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myOtherLB").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB").build(),
+                                Dimension.builder()
+                                    .name("ThisExtraDimensionIsIgnored")
+                                    .value("dummy")
+                                    .build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("b").build(),
+                                Dimension.builder()
+                                    .name("LoadBalancerName")
+                                    .value("myOtherLB")
+                                    .build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -435,10 +448,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "a")
                                 .Dimension("LoadBalancerName", "myLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
                 (GetMetricStatisticsRequest)
@@ -449,10 +463,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "b")
                                 .Dimension("LoadBalancerName", "myOtherLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -497,24 +512,28 @@ public class CloudWatchCollectorTest {
                                 .MetricName("RequestCount")
                                 .Dimensions("AvailabilityZone", "LoadBalancerName"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("b").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myOtherLB").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("b").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder()
+                                    .name("LoadBalancerName")
+                                    .value("myOtherLB")
+                                    .build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -526,10 +545,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "a")
                                 .Dimension("LoadBalancerName", "myLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -541,10 +561,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "b")
                                 .Dimension("LoadBalancerName", "myLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -584,10 +605,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "a")
                                 .Dimension("LoadBalancerName", "myLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -599,10 +621,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "b")
                                 .Dimension("LoadBalancerName", "myLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -663,20 +686,21 @@ public class CloudWatchCollectorTest {
                                             new MetricStatMatcher()
                                                 .Stat("Average").metric(secondMetric))))))
         .thenReturn(
-            GetMetricDataResponse.builder()
-                .metricDataResults(
-                    List.of(
-                        MetricDataResult.builder()
-                            .label("Average/AvailabilityZone=a,LoadBalancerName=myLB")
-                            .values(List.of(Double.valueOf(2.0)))
-                            .timestamps(timestamps)
-                            .build(),
-                        MetricDataResult.builder()
-                            .label("Average/AvailabilityZone=b,LoadBalancerName=myLB")
-                            .values(List.of(Double.valueOf(3.0)))
-                            .timestamps(timestamps)
-                            .build()))
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricDataResponse.builder()
+                    .metricDataResults(
+                        List.of(
+                            MetricDataResult.builder()
+                                .label("Average/AvailabilityZone=a,LoadBalancerName=myLB")
+                                .values(List.of(Double.valueOf(2.0)))
+                                .timestamps(timestamps)
+                                .build(),
+                            MetricDataResult.builder()
+                                .label("Average/AvailabilityZone=b,LoadBalancerName=myLB")
+                                .values(List.of(Double.valueOf(3.0)))
+                                .timestamps(timestamps)
+                                .build()))
+                    .build()));
 
     assertEquals(
         2.0,
@@ -716,24 +740,28 @@ public class CloudWatchCollectorTest {
                                 .MetricName("RequestCount")
                                 .Dimensions("AvailabilityZone", "LoadBalancerName"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB1").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("b").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB2").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myOtherLB").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB1").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("b").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB2").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder()
+                                    .name("LoadBalancerName")
+                                    .value("myOtherLB")
+                                    .build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -745,10 +773,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "a")
                                 .Dimension("LoadBalancerName", "myLB1"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -760,10 +789,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "b")
                                 .Dimension("LoadBalancerName", "myLB2"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -802,7 +832,9 @@ public class CloudWatchCollectorTest {
                             .Namespace("AWS/ELB")
                                 .MetricName("RequestCount")
                                 .Dimensions("AvailabilityZone", "LoadBalancerName"))))
-        .thenReturn(ListMetricsResponse.builder().nextToken("ABC").build());
+        .thenReturn(
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder().nextToken("ABC").build()));
     Mockito.when(
             cloudWatchClient.listMetrics(
                 (ListMetricsRequest)
@@ -813,14 +845,15 @@ public class CloudWatchCollectorTest {
                                 .Dimensions("AvailabilityZone", "LoadBalancerName")
                                 .NextToken("ABC"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB").build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -832,10 +865,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "a")
                                 .Dimension("LoadBalancerName", "myLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -865,13 +899,14 @@ public class CloudWatchCollectorTest {
                         new GetMetricStatisticsRequestMatcher()
                             .Namespace("AWS/ELB").MetricName("Latency"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder()
-                        .timestamp(new Date().toInstant())
-                        .extendedStatistics(extendedStatistics)
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder()
+                            .timestamp(new Date().toInstant())
+                            .extendedStatistics(extendedStatistics)
+                            .build())
+                    .build()));
 
     assertEquals(
         1.0,
@@ -903,17 +938,18 @@ public class CloudWatchCollectorTest {
                                 .MetricName("ConsumedReadCapacityUnits")
                                 .Dimensions("TableName", "GlobalSecondaryIndexName"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("TableName").value("myTable").build(),
-                            Dimension.builder()
-                                .name("GlobalSecondaryIndexName")
-                                .value("myIndex")
-                                .build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("TableName").value("myTable").build(),
+                                Dimension.builder()
+                                    .name("GlobalSecondaryIndexName")
+                                    .value("myIndex")
+                                    .build())
+                            .build())
+                    .build()));
     Mockito.when(
             cloudWatchClient.listMetrics(
                 (ListMetricsRequest)
@@ -923,17 +959,18 @@ public class CloudWatchCollectorTest {
                                 .MetricName("OnlineIndexConsumedWriteCapacity")
                                 .Dimensions("TableName", "GlobalSecondaryIndexName"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("TableName").value("myTable").build(),
-                            Dimension.builder()
-                                .name("GlobalSecondaryIndexName")
-                                .value("myIndex")
-                                .build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("TableName").value("myTable").build(),
+                                Dimension.builder()
+                                    .name("GlobalSecondaryIndexName")
+                                    .value("myIndex")
+                                    .build())
+                            .build())
+                    .build()));
     Mockito.when(
             cloudWatchClient.listMetrics(
                 (ListMetricsRequest)
@@ -943,12 +980,14 @@ public class CloudWatchCollectorTest {
                                 .MetricName("ConsumedReadCapacityUnits")
                                 .Dimensions("TableName"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("TableName").value("myTable").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("TableName").value("myTable").build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -960,9 +999,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("TableName", "myTable")
                                 .Dimension("GlobalSecondaryIndexName", "myIndex"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(Datapoint.builder().timestamp(new Date().toInstant()).sum(1.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).sum(1.0).build())
+                    .build()));
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
                 (GetMetricStatisticsRequest)
@@ -973,9 +1014,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("TableName", "myTable")
                                 .Dimension("GlobalSecondaryIndexName", "myIndex"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(Datapoint.builder().timestamp(new Date().toInstant()).sum(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).sum(2.0).build())
+                    .build()));
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
                 (GetMetricStatisticsRequest)
@@ -985,9 +1028,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("ConsumedReadCapacityUnits")
                                 .Dimension("TableName", "myTable"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(Datapoint.builder().timestamp(new Date().toInstant()).sum(3.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).sum(3.0).build())
+                    .build()));
 
     assertEquals(
         1.0,
@@ -1028,9 +1073,11 @@ public class CloudWatchCollectorTest {
                             .Namespace("AWS/DynamoDB")
                                 .MetricName("AccountProvisionedReadCapacityUtilization"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(Datapoint.builder().timestamp(new Date().toInstant()).sum(1.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).sum(1.0).build())
+                    .build()));
 
     assertEquals(
         1.0,
@@ -1075,15 +1122,16 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimensions("InstanceId"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("InstanceId").value("i-1").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("InstanceId").value("i-2").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(Dimension.builder().name("InstanceId").value("i-1").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(Dimension.builder().name("InstanceId").value("i-2").build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1094,10 +1142,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-1"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1108,10 +1157,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-2"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -1169,18 +1219,19 @@ public class CloudWatchCollectorTest {
                             .MetricName("CountedRequests")
                             .Dimensions("Region", "Rule", "WebACL"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("Region").value("eu-west-1").build(),
-                            Dimension.builder().name("Rule").value("WebAclLog").build(),
-                            Dimension.builder()
-                                .name("WebACL")
-                                .value("svc-integration-xxxx")
-                                .build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("Region").value("eu-west-1").build(),
+                                Dimension.builder().name("Rule").value("WebAclLog").build(),
+                                Dimension.builder()
+                                    .name("WebACL")
+                                    .value("svc-integration-xxxx")
+                                    .build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1192,10 +1243,11 @@ public class CloudWatchCollectorTest {
                             .Dimension("Rule", "WebAclLog")
                             .Dimension("WebACL", "svc-integration-xxxx"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).sum(200.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).sum(200.0).build())
+                    .build()));
 
     assertEquals(
         200.0,
@@ -1259,25 +1311,32 @@ public class CloudWatchCollectorTest {
                             .MetricName("UnHealthyHostCount")
                             .Dimensions("TargetGroup", "LoadBalancer"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder()
-                                .name("TargetGroup")
-                                .value("targetgroup/abc-123")
-                                .build(),
-                            Dimension.builder().name("LoadBalancer").value("app/myLB/123").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder()
-                                .name("TargetGroup")
-                                .value("targetgroup/abc-234")
-                                .build(),
-                            Dimension.builder().name("LoadBalancer").value("app/myLB/123").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder()
+                                    .name("TargetGroup")
+                                    .value("targetgroup/abc-123")
+                                    .build(),
+                                Dimension.builder()
+                                    .name("LoadBalancer")
+                                    .value("app/myLB/123")
+                                    .build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder()
+                                    .name("TargetGroup")
+                                    .value("targetgroup/abc-234")
+                                    .build(),
+                                Dimension.builder()
+                                    .name("LoadBalancer")
+                                    .value("app/myLB/123")
+                                    .build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1288,10 +1347,11 @@ public class CloudWatchCollectorTest {
                             .Dimension("TargetGroup", "targetgroup/abc-123")
                             .Dimension("LoadBalancer", "app/myLB/123"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1302,10 +1362,11 @@ public class CloudWatchCollectorTest {
                             .Dimension("TargetGroup", "targetgroup/abc-234")
                             .Dimension("LoadBalancer", "app/myLB/123"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -1371,27 +1432,34 @@ public class CloudWatchCollectorTest {
                                 .MetricName("RequestCount")
                                 .Dimensions("AvailabilityZone", "LoadBalancer"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancer").value("app/myLB/123").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("b").build(),
-                            Dimension.builder().name("LoadBalancer").value("app/myLB/123").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder()
-                                .name("LoadBalancer")
-                                .value("app/myOtherLB/456")
-                                .build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder()
+                                    .name("LoadBalancer")
+                                    .value("app/myLB/123")
+                                    .build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("b").build(),
+                                Dimension.builder()
+                                    .name("LoadBalancer")
+                                    .value("app/myLB/123")
+                                    .build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder()
+                                    .name("LoadBalancer")
+                                    .value("app/myOtherLB/456")
+                                    .build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1403,10 +1471,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "a")
                                 .Dimension("LoadBalancer", "app/myLB/123"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1418,10 +1487,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "b")
                                 .Dimension("LoadBalancer", "app/myLB/123"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1433,10 +1503,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "a")
                                 .Dimension("LoadBalancer", "app/myOtherLB/456"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(4.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(4.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -1524,15 +1595,16 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimensions("InstanceId"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("InstanceId").value("i-1").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("InstanceId").value("i-2").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(Dimension.builder().name("InstanceId").value("i-1").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(Dimension.builder().name("InstanceId").value("i-2").build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1543,10 +1615,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-1"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1557,10 +1630,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-2"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -1614,15 +1688,16 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimensions("InstanceId"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("InstanceId").value("i-1").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("InstanceId").value("i-2").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(Dimension.builder().name("InstanceId").value("i-1").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(Dimension.builder().name("InstanceId").value("i-2").build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1633,10 +1708,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-1"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1647,10 +1723,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-2"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -1706,15 +1783,16 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimensions("InstanceId"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("InstanceId").value("i-1").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("InstanceId").value("i-2").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(Dimension.builder().name("InstanceId").value("i-1").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(Dimension.builder().name("InstanceId").value("i-2").build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1725,10 +1803,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-1"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1739,10 +1818,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-2"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -1812,19 +1892,20 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimensions("InstanceId"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("InstanceId").value("i-1").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(Dimension.builder().name("InstanceId").value("i-2").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("InstanceId").value("i-no-tag").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(Dimension.builder().name("InstanceId").value("i-1").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(Dimension.builder().name("InstanceId").value("i-2").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("InstanceId").value("i-no-tag").build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1835,10 +1916,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-1"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1849,10 +1931,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-2"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1863,10 +1946,11 @@ public class CloudWatchCollectorTest {
                                 .MetricName("CPUUtilization")
                                 .Dimension("InstanceId", "i-no-tag"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(4.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(4.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -1936,28 +2020,32 @@ public class CloudWatchCollectorTest {
                                 .Dimensions("AvailabilityZone", "LoadBalancerName")
                                 .RecentlyActive(null))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB").build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB").build(),
-                            Dimension.builder()
-                                .name("ThisExtraDimensionIsIgnored")
-                                .value("dummy")
-                                .build())
-                        .build(),
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("b").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myOtherLB").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB").build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB").build(),
+                                Dimension.builder()
+                                    .name("ThisExtraDimensionIsIgnored")
+                                    .value("dummy")
+                                    .build())
+                            .build(),
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("b").build(),
+                                Dimension.builder()
+                                    .name("LoadBalancerName")
+                                    .value("myOtherLB")
+                                    .build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -1969,10 +2057,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "a")
                                 .Dimension("LoadBalancerName", "myLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
                 (GetMetricStatisticsRequest)
@@ -1983,10 +2072,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "b")
                                 .Dimension("LoadBalancerName", "myOtherLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(3.0).build())
+                    .build()));
 
     registry.getSampleValue(
         "aws_elb_request_count_average",
@@ -2041,14 +2131,15 @@ public class CloudWatchCollectorTest {
                                 .MetricName("RequestCount")
                                 .Dimensions("AvailabilityZone", "LoadBalancerName"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB").build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -2060,10 +2151,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "a")
                                 .Dimension("LoadBalancerName", "myLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     assertEquals(
         2.0,
@@ -2102,14 +2194,15 @@ public class CloudWatchCollectorTest {
                                 .MetricName("RequestCount")
                                 .Dimensions("AvailabilityZone", "LoadBalancerName"))))
         .thenReturn(
-            ListMetricsResponse.builder()
-                .metrics(
-                    Metric.builder()
-                        .dimensions(
-                            Dimension.builder().name("AvailabilityZone").value("a").build(),
-                            Dimension.builder().name("LoadBalancerName").value("myLB").build())
-                        .build())
-                .build());
+            CompletableFuture.completedFuture(
+                ListMetricsResponse.builder()
+                    .metrics(
+                        Metric.builder()
+                            .dimensions(
+                                Dimension.builder().name("AvailabilityZone").value("a").build(),
+                                Dimension.builder().name("LoadBalancerName").value("myLB").build())
+                            .build())
+                    .build()));
 
     Mockito.when(
             cloudWatchClient.getMetricStatistics(
@@ -2121,10 +2214,11 @@ public class CloudWatchCollectorTest {
                                 .Dimension("AvailabilityZone", "a")
                                 .Dimension("LoadBalancerName", "myLB"))))
         .thenReturn(
-            GetMetricStatisticsResponse.builder()
-                .datapoints(
-                    Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
-                .build());
+            CompletableFuture.completedFuture(
+                GetMetricStatisticsResponse.builder()
+                    .datapoints(
+                        Datapoint.builder().timestamp(new Date().toInstant()).average(2.0).build())
+                    .build()));
 
     assertEquals(
         2.0,

@@ -5,6 +5,7 @@ import static io.prometheus.cloudwatch.CachingDimensionSource.DimensionCacheConf
 import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.Describable;
 import io.prometheus.client.Counter;
+import io.prometheus.cloudwatch.CachingDimensionSource.DimensionCacheConfig;
 import io.prometheus.cloudwatch.DataGetter.MetricRuleData;
 import java.io.FileReader;
 import java.io.IOException;
@@ -28,8 +29,8 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClientBuilder;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClientBuilder;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.Statistic;
 import software.amazon.awssdk.services.resourcegroupstaggingapi.ResourceGroupsTaggingApiClient;
@@ -53,7 +54,7 @@ public class CloudWatchCollector extends Collector implements Describable {
 
   static class ActiveConfig {
     ArrayList<MetricRule> rules;
-    CloudWatchClient cloudWatchClient;
+    CloudWatchAsyncClient cloudWatchClient;
     ResourceGroupsTaggingApiClient taggingClient;
     DimensionSource dimensionSource;
 
@@ -114,7 +115,7 @@ public class CloudWatchCollector extends Collector implements Describable {
   /* For unittests. */
   protected CloudWatchCollector(
       String jsonConfig,
-      CloudWatchClient cloudWatchClient,
+      CloudWatchAsyncClient cloudWatchClient,
       ResourceGroupsTaggingApiClient taggingClient) {
     this(
         (Map<String, Object>) new Yaml(new SafeConstructor(new LoaderOptions())).load(jsonConfig),
@@ -124,7 +125,7 @@ public class CloudWatchCollector extends Collector implements Describable {
 
   private CloudWatchCollector(
       Map<String, Object> config,
-      CloudWatchClient cloudWatchClient,
+      CloudWatchAsyncClient cloudWatchClient,
       ResourceGroupsTaggingApiClient taggingClient) {
     loadConfig(config, cloudWatchClient, taggingClient);
   }
@@ -142,7 +143,9 @@ public class CloudWatchCollector extends Collector implements Describable {
   }
 
   protected void loadConfig(
-      Reader in, CloudWatchClient cloudWatchClient, ResourceGroupsTaggingApiClient taggingClient) {
+      Reader in,
+      CloudWatchAsyncClient cloudWatchClient,
+      ResourceGroupsTaggingApiClient taggingClient) {
     loadConfig(
         (Map<String, Object>) new Yaml(new SafeConstructor(new LoaderOptions())).load(in),
         cloudWatchClient,
@@ -151,7 +154,7 @@ public class CloudWatchCollector extends Collector implements Describable {
 
   private void loadConfig(
       Map<String, Object> config,
-      CloudWatchClient cloudWatchClient,
+      CloudWatchAsyncClient cloudWatchClient,
       ResourceGroupsTaggingApiClient taggingClient) {
     if (config == null) { // Yaml config empty, set config to empty map.
       config = new HashMap<>();
@@ -194,7 +197,7 @@ public class CloudWatchCollector extends Collector implements Describable {
     String region = (String) config.get("region");
 
     if (cloudWatchClient == null) {
-      CloudWatchClientBuilder clientBuilder = CloudWatchClient.builder();
+      CloudWatchAsyncClientBuilder clientBuilder = CloudWatchAsyncClient.builder();
 
       if (config.containsKey("role_arn")) {
         clientBuilder.credentialsProvider(getRoleCredentialProvider(config));
@@ -348,7 +351,7 @@ public class CloudWatchCollector extends Collector implements Describable {
 
   private void loadConfig(
       ArrayList<MetricRule> rules,
-      CloudWatchClient cloudWatchClient,
+      CloudWatchAsyncClient cloudWatchClient,
       ResourceGroupsTaggingApiClient taggingClient,
       DimensionSource dimensionSource) {
     synchronized (activeConfig) {

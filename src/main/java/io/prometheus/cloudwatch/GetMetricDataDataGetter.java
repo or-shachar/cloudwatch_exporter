@@ -3,18 +3,16 @@ package io.prometheus.cloudwatch;
 import io.prometheus.client.Counter;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataRequest;
 import software.amazon.awssdk.services.cloudwatch.model.GetMetricDataResponse;
@@ -32,7 +30,7 @@ class GetMetricDataDataGetter implements DataGetter {
   // https://aws.amazon.com/cloudwatch/pricing/
   private final long start;
   private final MetricRule rule;
-  private final CloudWatchClient client;
+  private final CloudWatchAsyncClient client;
   private final Counter apiRequestsCounter;
   private final Counter metricsRequestedCounter;
   private final Map<String, MetricRuleData> results;
@@ -139,39 +137,27 @@ class GetMetricDataDataGetter implements DataGetter {
   }
 
   private Map<String, MetricRuleData> fetchAllDataPoints(List<List<Dimension>> dimensionsList) {
-    int parallelism = 4; // Set the desired level of parallelism
-    ExecutorService executor = Executors.newFixedThreadPool(parallelism);
-    List<CompletableFuture<List<MetricDataResult>>> futures = new ArrayList<>();
+    List<GetMetricDataRequest> requests = buildMetricDataRequests(rule, dimensionsList);
+    List<CompletableFuture<List<MetricDataResult>>> futures =
+        requests.stream()
+            .map(
+                request ->
+                    client
+                        .getMetricData(request)
+                        .thenApply(GetMetricDataResponse::metricDataResults))
+            .collect(Collectors.toList());
 
-    for (GetMetricDataRequest request : buildMetricDataRequests(rule, dimensionsList)) {
-      CompletableFuture<List<MetricDataResult>> future =
-          CompletableFuture.supplyAsync(
-              () -> {
-                GetMetricDataResponse response = client.getMetricData(request);
-                apiRequestsCounter.labels("getMetricData", rule.awsNamespace).inc();
-                return response.metricDataResults();
-              },
-              executor);
-      futures.add(future);
-    }
-
-    List<MetricDataResult> results = new ArrayList<>();
-    try {
-      CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-      for (CompletableFuture<List<MetricDataResult>> future : futures) {
-        results.addAll(future.get());
-      }
-    } catch (InterruptedException | ExecutionException e) {
-      // Handle exceptions
-      e.printStackTrace();
-    } finally {
-      executor.shutdown();
-    }
-
+    // Wait for all futures to complete
+    List<MetricDataResult> res =
+        futures.stream()
+            .map(CompletableFuture::join)
+            .flatMap(Collection::stream)
+            .collect(Collectors.toList());
+    apiRequestsCounter.labels("getMetricData", rule.awsNamespace).inc(requests.size());
     metricsRequestedCounter
         .labels(rule.awsMetricName, rule.awsNamespace)
         .inc(metricRequestedForBilling);
-    return toMap(results);
+    return toMap(res);
   }
 
   private Map<String, MetricRuleData> toMap(List<MetricDataResult> metricDataResults) {
@@ -204,7 +190,7 @@ class GetMetricDataDataGetter implements DataGetter {
   }
 
   GetMetricDataDataGetter(
-      CloudWatchClient client,
+      CloudWatchAsyncClient client,
       long start,
       MetricRule rule,
       Counter apiRequestsCounter,

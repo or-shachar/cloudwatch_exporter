@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClient;
+import software.amazon.awssdk.services.cloudwatch.CloudWatchAsyncClient;
 import software.amazon.awssdk.services.cloudwatch.model.Dimension;
 import software.amazon.awssdk.services.cloudwatch.model.DimensionFilter;
 import software.amazon.awssdk.services.cloudwatch.model.ListMetricsRequest;
@@ -18,9 +18,10 @@ final class DefaultDimensionSource implements DimensionSource {
 
   private static final Logger LOGGER = Logger.getLogger(DefaultDimensionSource.class.getName());
   private final Counter cloudwatchRequests;
-  private final CloudWatchClient cloudWatchClient;
+  private final CloudWatchAsyncClient cloudWatchClient;
 
-  public DefaultDimensionSource(CloudWatchClient cloudWatchClient, Counter cloudwatchRequests) {
+  public DefaultDimensionSource(
+      CloudWatchAsyncClient cloudWatchClient, Counter cloudwatchRequests) {
     this.cloudWatchClient = cloudWatchClient;
     this.cloudwatchRequests = cloudwatchRequests;
   }
@@ -63,7 +64,7 @@ final class DefaultDimensionSource implements DimensionSource {
   }
 
   private List<List<Dimension>> listDimensions(
-      MetricRule rule, List<String> tagBasedResourceIds, CloudWatchClient cloudWatchClient) {
+      MetricRule rule, List<String> tagBasedResourceIds, CloudWatchAsyncClient cloudWatchClient) {
     List<List<Dimension>> dimensions = new ArrayList<>();
     if (rule.awsDimensions == null) {
       dimensions.add(new ArrayList<>());
@@ -88,7 +89,7 @@ final class DefaultDimensionSource implements DimensionSource {
     String nextToken = null;
     do {
       requestBuilder.nextToken(nextToken);
-      ListMetricsResponse response = cloudWatchClient.listMetrics(requestBuilder.build());
+      ListMetricsResponse response = cloudWatchClient.listMetrics(requestBuilder.build()).join();
       cloudwatchRequests.labels("listMetrics", rule.awsNamespace).inc();
       for (Metric metric : response.metrics()) {
         if (metric.dimensions().size() != dimensionFilters.size()) {
