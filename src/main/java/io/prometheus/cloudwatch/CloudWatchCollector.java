@@ -527,6 +527,7 @@ public class CloudWatchCollector extends Collector implements Describable {
           config.dimensionSource.getDimensions(rule, tagBasedResourceIds).getDimensions();
       DataGetter dataGetter = null;
       if (rule.useGetMetricData) {
+        LOGGER.info("Using GetMetricDataDataGetter data getter");
         dataGetter =
             new GetMetricDataDataGetter(
                 config.cloudWatchClient,
@@ -536,6 +537,7 @@ public class CloudWatchCollector extends Collector implements Describable {
                 cloudwatchMetricsRequested,
                 dimensionList);
       } else {
+        LOGGER.info("Using GetMetricStatisticsDataGetter data getter");
         dataGetter =
             new GetMetricStatisticsDataGetter(
                 config.cloudWatchClient,
