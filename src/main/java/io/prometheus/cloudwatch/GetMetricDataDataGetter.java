@@ -156,7 +156,7 @@ class GetMetricDataDataGetter implements DataGetter {
   private Map<String, MetricRuleData> toMap(List<MetricDataResult> metricDataResults) {
     Map<String, MetricRuleData> res = new HashMap<>();
     for (MetricDataResult dataResult : metricDataResults) {
-      if (dataResult.statusCode()==StatusCode.INTERNAL_ERROR){
+      if (dataResult.statusCode() == StatusCode.INTERNAL_ERROR) {
         LOGGER.warning("Got INTERNAL_ERROR from CloudWatch. Ignoring the result.");
       }
       if (dataResult.timestamps().isEmpty() || dataResult.values().isEmpty()) {
